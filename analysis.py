@@ -17,7 +17,8 @@ what this program does:
 
 what this program needs to do:
 
-    - use a three dimensional array instead of a bunch of dictionaries
+    - use a three dimensional array or dataframe instead of a bunch
+    of dictionaries
 
     - get data into a format to enter into weblogo to generate a sequence
     profile logo
@@ -124,16 +125,15 @@ for i in range(expreps):
         fitness_rep[elem] = fitness[elem][i]
     fitness_reps.append(ExpReps(fitness_rep))
 
-#for i, j in zip(range(21), range(40)):
-#    print '%d %d' % (i, j)
-
 for rep in fitness_reps:
     rep.normalize()
     rep.build_array()
-#    print rep.hmap_array
 
-hmap_norm_mean = (fitness_reps[0].hmap_array + fitness_reps[1].hmap_array) \
-  / 2.0
+# average the experimental sets
+hmap_norm_mean = np.zeros((20,seq_length))
+for i in range(expreps):
+    hmap_norm_mean += fitness_reps[i].hmap_array
+hmap_norm_mean = hmap_norm_mean / float(expreps)
 
 # compose heatmap axis labels
 row_labels = []
