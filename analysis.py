@@ -24,6 +24,7 @@ what this program needs to do:
 """
 
 import numpy as np
+from collections import Counter
 from fasta_aa import load_fasta_aa
 from heatmap import plot_hmap
 
@@ -50,13 +51,97 @@ fitness_header = datalines.pop(0)
 
 expreps = len(datalines[0].split(',')) - 2
 
+# read data into a dictionary
 fitness = {}
 for line in datalines:
     elem = line.split(',')
-    fitness[(elem[0], elem[1], aminotonumber[elem[1]])] = elem[2:]
+    fitness[(elem[0], elem[1], aminotonumber[elem[1]])] = \
+        [float(i) for i in elem[2:]]
 
-for elem in fitness:
-    print "%s: %s" % (elem, fitness[elem])
+# length of sequence and first resi position
+seq_length = len(Counter([i[0] for i in fitness]))
+first_resi = sorted([i[0] for i in fitness])[0]
+
+class ExpReps(object):
+    def __init__(self, exprep):
+        self.fitness = exprep
+        # there are some wierd entries where the fitness value is 999.9
+        # set these to 0 and remember their names for later
+        self.bad_data = []
+        for elem in self.fitness:
+            if self.fitness[elem] == 999.9:
+                self.bad_data.append(elem)
+                self.fitness[elem] = 0.0
+
+    def normalize(self):
+        # get avg enrichment of stop codon mutants
+        self.avg_stop = 0
+        self.stop_count = 0
+        for elem in self.fitness:
+            if elem[1] == '*':
+                self.avg_stop += float(self.fitness[elem])
+                self.stop_count += 1
+        self.avg_stop = self.avg_stop / float(self.stop_count)
+        # start normalizing by shifting eveything up by the magnitude
+        # of the avg STOP codon fitness (want this to be our zero)
+        self.fitness_norm = {}
+        for elem in self.fitness:
+            self.fitness_norm[elem] = self.fitness[elem] - self.avg_stop
+        # get the average of wt positions in the shifted data
+        self.sum_wt = 0
+        self.count_wt = 0
+        for elem in self.fitness_norm:
+            if elem in self.bad_data:
+                pass
+            else:
+                for wt_pos in native_seq:
+                    if int(elem[0]) == wt_pos \
+                      and elem[1] == native_seq[wt_pos]:
+                        self.sum_wt += self.fitness_norm[elem]
+                        self.count_wt += 1
+        self.avg_shifted_wt = self.sum_wt / self.count_wt
+        # now divide every shifted point by the wt average, then clip
+        # negative values to 0
+        for elem in self.fitness_norm:
+            self.fitness_norm[elem] = self.fitness_norm[elem] \
+                / self.avg_shifted_wt
+            if self.fitness_norm[elem] < 0.0:
+                self.fitness_norm[elem] = 0.0
+
+    def build_array(self):
+        # make an empty array the size of the heatmap
+        self.hmap_array = np.zeros((21,seq_length))
+        # fill it with data
+        for elem in self.fitness_norm:
+                hmap_array[int(elem[2]), int(elem[0]) - first_resi] = \
+                    fitness_normalized[data]
+
+
+# for each experimental set, build an object and put it in a list
+fitness_sets = []
+for i in range(expreps):
+    fitness_set = {}
+    for elem in fitness:
+        fitness_set[elem] = fitness[elem][i]
+    fitness_sets.append(ExpReps(fitness_set))
+
+for rep in fitness_sets:
+    rep.normalize()
+    for elem in sorted(rep.fitness_norm.values()):
+        print elem
+
+# compose heatmap axis labels
+row_labels = []
+for n in range(101, 141, 1):
+    row_labels.append(('%s%d') % (native_seq[n], n))
+
+column_labels = []
+for value in sorted(aminotonumber.values()):
+    for key in aminotonumber:
+        if value == aminotonumber[key]:
+            column_labels.append(key)
+
+#plot_hmap(hmap_array, row_labels, column_labels)
 
 """
 # extract stop codon data points into a new dict
@@ -68,11 +153,7 @@ for elem in fitness:
 # get avg enrichment of stop codon mutants
 stop_avg = sum(stop_codon_fitness.values()) / len(stop_codon_fitness.values())
 
-# start normalizing by shifting eveything up by the magnitude
-# of the avg STOP codon fitness (want this to be our zero)
-fitness_shifted = {}
-for elem in fitness:
-    fitness_shifted[elem] = fitness[elem] - stop_avg
+
 
 # get the average of wt positions in the shifted data
 sum_wt = 0
