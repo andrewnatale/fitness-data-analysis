@@ -56,11 +56,11 @@ fitness = {}
 for line in datalines:
     elem = line.split(',')
     fitness[(elem[0], elem[1], aminotonumber[elem[1]])] = \
-        [float(i) for i in elem[2:]]
+      [float(i) for i in elem[2:]]
 
 # length of sequence and first resi position
 seq_length = len(Counter([i[0] for i in fitness]))
-first_resi = sorted([i[0] for i in fitness])[0]
+first_resi = int(sorted([i[0] for i in fitness])[0])
 
 class ExpReps(object):
     def __init__(self, exprep):
@@ -104,7 +104,7 @@ class ExpReps(object):
         # negative values to 0
         for elem in self.fitness_norm:
             self.fitness_norm[elem] = self.fitness_norm[elem] \
-                / self.avg_shifted_wt
+              / self.avg_shifted_wt
             if self.fitness_norm[elem] < 0.0:
                 self.fitness_norm[elem] = 0.0
 
@@ -113,26 +113,32 @@ class ExpReps(object):
         self.hmap_array = np.zeros((21,seq_length))
         # fill it with data
         for elem in self.fitness_norm:
-                hmap_array[int(elem[2]), int(elem[0]) - first_resi] = \
-                    fitness_normalized[data]
+                self.hmap_array[int(elem[2]), int(elem[0]) - first_resi] \
+                  = self.fitness_norm[elem]
 
 
 # for each experimental set, build an object and put it in a list
-fitness_sets = []
+fitness_reps = []
 for i in range(expreps):
-    fitness_set = {}
+    fitness_rep = {}
     for elem in fitness:
-        fitness_set[elem] = fitness[elem][i]
-    fitness_sets.append(ExpReps(fitness_set))
+        fitness_rep[elem] = fitness[elem][i]
+    fitness_reps.append(ExpReps(fitness_rep))
 
-for rep in fitness_sets:
+#for i, j in zip(range(21), range(40)):
+#    print '%d %d' % (i, j)
+
+for rep in fitness_reps:
     rep.normalize()
-    for elem in sorted(rep.fitness_norm.values()):
-        print elem
+    rep.build_array()
+#    print rep.hmap_array
+
+hmap_norm_mean = (fitness_reps[0].hmap_array + fitness_reps[1].hmap_array) \
+  / 2.0
 
 # compose heatmap axis labels
 row_labels = []
-for n in range(101, 141, 1):
+for n in range(first_resi, first_resi + seq_length, 1):
     row_labels.append(('%s%d') % (native_seq[n], n))
 
 column_labels = []
@@ -141,62 +147,4 @@ for value in sorted(aminotonumber.values()):
         if value == aminotonumber[key]:
             column_labels.append(key)
 
-#plot_hmap(hmap_array, row_labels, column_labels)
-
-"""
-# extract stop codon data points into a new dict
-stop_codon_fitness = {}
-for elem in fitness:
-    if elem[1] == '*':
-        stop_codon_fitness[elem] = fitness[elem]
-
-# get avg enrichment of stop codon mutants
-stop_avg = sum(stop_codon_fitness.values()) / len(stop_codon_fitness.values())
-
-
-
-# get the average of wt positions in the shifted data
-sum_wt = 0
-count_wt = 0
-for elem in fitness_shifted:
-    for wt_pos in native_seq:
-        if int(elem[0]) == wt_pos and elem[1] == native_seq[wt_pos]:
-            sum_wt += fitness_shifted[elem]
-            count_wt += 1
-avg_shifted_wt = sum_wt / count_wt
-#print stop_avg
-#print avg_shifted_wt
-# now divide every shifted point by the wt average
-fitness_normalized = {}
-for elem in fitness_shifted:
-    fitness_normalized[elem] = fitness_shifted[elem] / avg_shifted_wt
-
-# set negative values to zero
-for elem in fitness_normalized:
-    if fitness_normalized[elem] < 0:
-        fitness_normalized[elem] = 0
-#    if fitness_normalized[elem] > 100:
-#        fitness_normalized[elem] = 0
-
-# make an empty array the size of the heatmap
-hmap_array = np.zeros((21,40))
-
-# fill it with data
-for data in fitness_normalized:
-        position = int(data[0])
-        mutation = int(data[2])
-        hmap_array[mutation, position - 101] = fitness_normalized[data]
-
-# compose heatmap axis labels
-row_labels = []
-for n in range(101, 141, 1):
-    row_labels.append(('%s%d') % (native_seq[n], n))
-
-column_labels = []
-for value in sorted(aminotonumber.values()):
-    for key in aminotonumber:
-        if value == aminotonumber[key]:
-            column_labels.append(key)
-
-#plot_hmap(hmap_array, row_labels, column_labels)
-"""
+plot_hmap(hmap_norm_mean, row_labels, column_labels)
