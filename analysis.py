@@ -4,23 +4,23 @@
 """
 what this program does:
 
-    - loads wt sequence data into a dictionary using fasta_aa module
+    - loads baseline sequence data into a dictionary using fasta_aa module
 
-    - loads sequence enrichment data from a csv file with
-    the format "position,aa,v1,v2,...,vn" where each v is an experimental
-    repeat
-
-    - turns this data into a dictionary with the format
-    (position, aa, #) as keys and the mean of v1 and v2 as values
-    '#' is a code for each aa used to order them by chemical properties
+    - takes mutation enrichment data from a csv file with the format
+    "position,aa,v1,v2,...,vn" where each v is an experimental repeat
 
     - normalizes the fitness data where zero is the average stop codon
-    enrichment and 1 is the average wt fitness. values below zero are set
-    to zero
+    enrichment and 1 is the average baseline fitness; values below zero
+    are set to zero
+
+    - plots a heatmap of the normalized data
 
 what this program needs to do:
-    - make a better heatmap using normalized data
-    - get data into a format to enter into weblogo
+
+    - use a three dimensional array instead of a bunch of dictionaries
+
+    - get data into a format to enter into weblogo to generate a sequence
+    profile logo
 """
 
 import numpy as np
@@ -91,9 +91,7 @@ class ExpReps(object):
         self.sum_wt = 0
         self.count_wt = 0
         for elem in self.fitness_norm:
-            if elem in self.bad_data:
-                pass
-            else:
+            if elem not in self.bad_data:
                 for wt_pos in native_seq:
                     if int(elem[0]) == wt_pos \
                       and elem[1] == native_seq[wt_pos]:
@@ -110,10 +108,11 @@ class ExpReps(object):
 
     def build_array(self):
         # make an empty array the size of the heatmap
-        self.hmap_array = np.zeros((21,seq_length))
+        self.hmap_array = np.zeros((20,seq_length))
         # fill it with data
         for elem in self.fitness_norm:
-                self.hmap_array[int(elem[2]), int(elem[0]) - first_resi] \
+            if elem[1] != '*':
+                self.hmap_array[int(elem[2] - 1), int(elem[0]) - first_resi] \
                   = self.fitness_norm[elem]
 
 
