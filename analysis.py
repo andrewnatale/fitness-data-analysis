@@ -146,4 +146,27 @@ for value in sorted(aminotonumber.values()):
         if value == aminotonumber[key]:
             column_labels.append(key)
 
-plot_hmap(hmap_norm_mean, row_labels, column_labels)
+#plot_hmap(hmap_norm_mean, row_labels, column_labels)
+
+# function to write normalized data into a position specific scoring matrix
+# in the transfac file format that can be processed by the weblogo
+# application to generate a sequence logo
+def pssm_out(data, seq_range, positions, identifier, out_file):
+    # open a file for writing
+    with open(out_file, 'w') as pssm_file:
+        # put an identifier on the first line
+        pssm_file.write('ID %s\n' % identifier)
+        # write position values
+        pssm_file.write('P0 ')
+        for elem in positions:
+            pssm_file.write('%s ' % elem)
+        pssm_file.write('\n')
+        # write data for each position
+        #for elem in seq_range:
+        #    pass
+        # write footer
+        pssm_file.write('XX\n')
+        pssm_file.write('//\n')
+
+
+pssm_out(None, None, column_labels, native_seq['header'], 'stuff.test')
