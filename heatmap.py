@@ -20,10 +20,11 @@ def plot_hmap(data, row_labels, column_labels):
     plt.show()
 
 # hardcoded data filenames
-native_seq_file = 'P32835.fasta'
-fitness_data_file = 'gsp_log_data_101-140.csv'
+native_seq_file = '../../logo/P32835.fasta'
+fitness_data_file = '../../logo/gsp_log_data_101-140.csv'
 
 a, b, c = process_fitness(fitness_data_file, native_seq_file)
 
 # slice off stop codon data points
 plot_hmap(a[1:,:], b, c[1:])
+#plot_hmap(a, b, c)
