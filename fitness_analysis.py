@@ -1,10 +1,9 @@
 #!/usr/bin/env python2
 #
-# analyze gsp1 fitness data
-#
 # import this module to process fitness data from a csv file with the format
 # "position,aa,v1,v2,...,vn" where each v is an experimental repeat and
-# return that data with some useful labels for visualization
+# return that data with some useful labels for visualization.
+# also requires a native sequence file in fasta format for normalization
 
 # imports
 import numpy as np
@@ -14,8 +13,8 @@ from fasta_aa import load_fasta_aa
 # main function, import this into other scripts
 def process_fitness(fitness_data_file, native_seq_file):
 
-    # mapping of aa types to numbers that orders them from
-    # most hydrophobic to most polar
+    # mapping of aa types to numbers that loosely
+    # orders them from hydrophobic to polar with 0 as 'stop'
     aminotonumber = {'*': 0, 'A': 9, 'C': 8, 'E': 20, 'D': 19,
                      'G': 10, 'F': 2, 'I': 5, 'H': 16, 'K': 18, 'M': 6,
                      'L': 4, 'N': 14, 'Q': 15, 'P': 11, 'S': 12, 'R': 17,
@@ -25,18 +24,18 @@ def process_fitness(fitness_data_file, native_seq_file):
     # as well as to provide labels
     native_seq = load_fasta_aa(native_seq_file)
 
-    # open and cleanup enrichment data
+    # open fitness data
     data = open(fitness_data_file, 'r')
     datalines = data.readlines()
     data.close()
     datalines = [i.strip('\r\n') for i in datalines]
-    # remove column labels
+    # remove column labels (but save it just in case)
     fitness_header = datalines.pop(0)
 
     # count the number of replicates in the input file
     expreps = len(datalines[0].split(',')) - 2
 
-    # read data into a dictionary, replacing the aa leter code with a number
+    # read data into a dictionary, replacing the aa letter code with a number
     # which will be used to arrange them (see 'aminotonumber' dictionary)
     fitness_dict = {}
     for line in datalines:
@@ -48,10 +47,13 @@ def process_fitness(fitness_data_file, native_seq_file):
     seq_length = len(Counter([i[0] for i in fitness_dict]))
     first_resi = int(sorted([i[0] for i in fitness_dict])[0])
 
-    # create an empty 3d array of right size for all the data
+    # create an empty 3d array of the correct size for all the data
     fitness_array = np.zeros((expreps,21,seq_length))
 
-    # for each replicate, fill the array with data and process it
+    # for each replicate, fill the array with data and process it.
+    # the 'bad data' correction in this loop will not fix everything -
+    # it will specifically handle when a wt residue fitness param
+    # has a value of '999.9' and screen it out before normalizing.
     for i in range(expreps):
 
         # fill the array using the data dictionary
@@ -88,16 +90,19 @@ def process_fitness(fitness_data_file, native_seq_file):
         for index, j in np.ndenumerate(fitness_array[i,:,:]):
             if j < 0:
                 fitness_array[i,index[0],index[1]] = 0.0
+    # end of the loop
 
-    # compose axis labels
-    column_labels = []
+    # compose data labels
+    sequence_labels = []
     for n in range(first_resi, first_resi + seq_length, 1):
-        column_labels.append(('%s%d') % (native_seq[n], n))
+        sequence_labels.append(('%s%d') % (native_seq[n], n))
 
-    row_labels = []
+    mutation_labels = []
     for value in sorted(aminotonumber.values()):
         for key in aminotonumber:
             if value == aminotonumber[key]:
-                row_labels.append(key)
+                mutation_labels.append(key)
 
-    return (np.mean(fitness_array, axis=0), column_labels, row_labels)
+    # return a 2d array which is the mean of the replicates
+    # stacked in the 3d array, plus some useful labels for plots
+    return (np.mean(fitness_array, axis=0), sequence_labels, mutation_labels)
