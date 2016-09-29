@@ -8,7 +8,8 @@
 # imports
 import numpy as np
 from collections import Counter
-from fasta_aa import load_fasta_aa
+#from fasta_aa import load_fasta_aa
+from Bio import SeqIO
 
 # main function, import this into other scripts
 def process_fitness(fitness_data_file, native_seq_file):
@@ -21,8 +22,9 @@ def process_fitness(fitness_data_file, native_seq_file):
                      'T': 13, 'W': 1, 'V': 7, 'Y': 3}
 
     # load a reference sequence - this will be used to normalize the data
-    # as well as to provide labels
-    native_seq = load_fasta_aa(native_seq_file)
+    # as well as to provide labels. this should be a fasta file and only
+    # the first record will be used
+    native_seq = list(SeqIO.parse(native_seq_file, 'fasta'))
 
     # open fitness data
     data = open(fitness_data_file, 'r')
@@ -70,18 +72,18 @@ def process_fitness(fitness_data_file, native_seq_file):
                 fitness_array[i,index[0],index[1]] = 0.0
 
         # get average stop codon values for this replicate
-        avg_stop = np.sum(fitness_array[i,aminotonumber['*'],:]) \
-          / fitness_array[i,aminotonumber['*'],:].__len__()
+        avg_stop = np.mean(fitness_array[i,aminotonumber['*'],:])
         # shift everything by the average stop codon value
         fitness_array[i,:,:] = fitness_array[i,:,:] - avg_stop
 
         # get the average wt residue fitness in the shifted data
         avg_wt = 0
         for j in range(first_resi, first_resi + seq_length, 1):
-            if (aminotonumber[native_seq[j]],j - first_resi) \
+            if (aminotonumber[native_seq[0].seq[j-1]],j - first_resi) \
               not in bad_data_exprep:
+                print (native_seq[0].seq[j-1], aminotonumber[native_seq[0].seq[j-1]],j)
                 avg_wt += \
-                  fitness_array[i,aminotonumber[native_seq[j]],j - first_resi]
+                  fitness_array[i,aminotonumber[native_seq[0].seq[j-1]],j - first_resi]
         avg_wt = avg_wt / (seq_length - len(bad_data_exprep))
         # divide everything by the average wt residue fitness
         fitness_array[i,:,:] = fitness_array[i,:,:] / avg_wt
@@ -95,7 +97,7 @@ def process_fitness(fitness_data_file, native_seq_file):
     # compose data labels
     sequence_labels = []
     for n in range(first_resi, first_resi + seq_length, 1):
-        sequence_labels.append(('%s%d') % (native_seq[n], n))
+        sequence_labels.append(('%s%d') % (native_seq[0].seq[n-1], n))
 
     mutation_labels = []
     for value in sorted(aminotonumber.values()):
