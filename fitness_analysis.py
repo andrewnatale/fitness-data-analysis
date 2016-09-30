@@ -8,11 +8,15 @@
 # imports
 import numpy as np
 from collections import Counter
-#from fasta_aa import load_fasta_aa
 from Bio import SeqIO
 
 # main function, import this into other scripts
-def process_fitness(fitness_data_file, native_seq_file):
+# normalization types:
+# none -> None
+# zero(max stop) only -> 'stop'
+# per position probability -> 'prob'
+def process_fitness(fitness_data_file, native_seq_file,
+                    normalization='prob'):
 
     # mapping of aa types to numbers that loosely
     # orders them from hydrophobic to polar with 0 as 'stop'
@@ -56,42 +60,54 @@ def process_fitness(fitness_data_file, native_seq_file):
     # the 'bad data' correction in this loop will not fix everything -
     # it will specifically handle when a wt residue fitness param
     # has a value of '999.9' and screen it out before normalizing.
+    bad_data = []
     for i in range(expreps):
-
         # fill the array using the data dictionary
         for elem in fitness_dict:
             fitness_array[i, int(elem[1]), int(elem[0]) - first_resi] \
               = fitness_dict[elem][i]
-
         # look for bad data points within this replicate
-        bad_data_exprep = []
-        for index, j in np.ndenumerate(fitness_array[i,:,:]):
+        for index, j in np.ndenumerate(fitness_array):
             if j == 999.9:
                 # remember that data point, then set it to zero for convenience
-                bad_data_exprep.append(index)
-                fitness_array[i,index[0],index[1]] = 0.0
+                bad_data.append((index[1],index[2]))
+                fitness_array[index] = 0.0
 
-        # get average stop codon values for this replicate
-        avg_stop = np.mean(fitness_array[i,aminotonumber['*'],:])
-        # shift everything by the average stop codon value
-        fitness_array[i,:,:] = fitness_array[i,:,:] - avg_stop
+    # normalization types
+    # None: don't do any normalization, results in
+    # a mix of pos and neg values
+    if normalization == None:
+        # average all the expreps
+        mean_fitness_array = np.mean(fitness_array, axis=0)
+    # 'stop': use the highest stop codon fitness as a cutoff, set it to
+    # zero and shift all the data, then discard values below zero
+    elif normalization == 'stop':
+        for i in range(expreps):
+            # get max stop codon values for this replicate
+            max_stop = np.amax(fitness_array[i,aminotonumber['*'],:])
+            # shift everything by the max stop codon value
+            fitness_array[i,:,:] = fitness_array[i,:,:] - max_stop
+            # set any values below zero to zero
+            for index, j in np.ndenumerate(fitness_array[i,:,:]):
+                if j < 0:
+                    fitness_array[i,index[0],index[1]] = 0.0
+        # average all the expreps
+        mean_fitness_array = np.mean(fitness_array, axis=0)
+    # 'prob': same as stop, but then normalize each position column
+    # so that it sums to 1
+    elif normalization == 'prob':
+        for i in range(expreps):
+            # get max stop codon values for this replicate
+            max_stop = np.amax(fitness_array[i,aminotonumber['*'],:])
+            # shift everything by the max stop codon value
+            fitness_array[i,:,:] = fitness_array[i,:,:] - max_stop
+            # set any values below zero to zero
+            for index, j in np.ndenumerate(fitness_array[i,:,:]):
+                if j < 0:
+                    fitness_array[i,index[0],index[1]] = 0.0
+        # average all the expreps
+        mean_fitness_array = np.mean(fitness_array, axis=0)
 
-        # get the average wt residue fitness in the shifted data
-        avg_wt = 0
-        for j in range(first_resi, first_resi + seq_length, 1):
-            if (aminotonumber[native_seq[0].seq[j-1]],j - first_resi) \
-              not in bad_data_exprep:
-                print (native_seq[0].seq[j-1], aminotonumber[native_seq[0].seq[j-1]],j)
-                avg_wt += \
-                  fitness_array[i,aminotonumber[native_seq[0].seq[j-1]],j - first_resi]
-        avg_wt = avg_wt / (seq_length - len(bad_data_exprep))
-        # divide everything by the average wt residue fitness
-        fitness_array[i,:,:] = fitness_array[i,:,:] / avg_wt
-
-        # set any values below zero to zero
-        for index, j in np.ndenumerate(fitness_array[i,:,:]):
-            if j < 0:
-                fitness_array[i,index[0],index[1]] = 0.0
     # end of the loop
 
     # compose data labels
@@ -107,4 +123,4 @@ def process_fitness(fitness_data_file, native_seq_file):
 
     # return a 2d array which is the mean of the replicates
     # stacked in the 3d array, plus some useful labels for plots
-    return (np.mean(fitness_array, axis=0), sequence_labels, mutation_labels)
+    return (mean_fitness_array, sequence_labels, mutation_labels)
