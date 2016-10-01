@@ -16,7 +16,7 @@ from Bio import SeqIO
 # zero(max stop) only -> 'stop'
 # per position probability -> 'prob'
 def process_fitness(fitness_data_file, native_seq_file,
-                    normalization='prob'):
+                    normalization=None):
 
     # mapping of aa types to numbers that loosely
     # orders them from hydrophobic to polar with 0 as 'stop'
@@ -27,7 +27,7 @@ def process_fitness(fitness_data_file, native_seq_file,
 
     # load a reference sequence - this will be used to normalize the data
     # as well as to provide labels. this should be a fasta file and only
-    # the first record will be used
+    # the first record in the file will be used
     native_seq = list(SeqIO.parse(native_seq_file, 'fasta'))
 
     # open fitness data
@@ -57,26 +57,28 @@ def process_fitness(fitness_data_file, native_seq_file,
     fitness_array = np.zeros((expreps,21,seq_length))
 
     # for each replicate, fill the array with data and process it.
-    # the 'bad data' correction in this loop will not fix everything -
-    # it will specifically handle when a wt residue fitness param
-    # has a value of '999.9' and screen it out before normalizing.
-    bad_data = []
+    # the 'bad data' correction in this loop will only handle when
+    # a value of '999.9' is found, and will instead set it to zero.
+    # need to find a better way to do this, cause it messes with
+    # assigning probability
     for i in range(expreps):
         # fill the array using the data dictionary
         for elem in fitness_dict:
             fitness_array[i, int(elem[1]), int(elem[0]) - first_resi] \
               = fitness_dict[elem][i]
-        # look for bad data points within this replicate
-        for index, j in np.ndenumerate(fitness_array):
-            if j == 999.9:
-                # remember that data point, then set it to zero for convenience
-                bad_data.append((index[1],index[2]))
-                fitness_array[index] = 0.0
+    # look for and remember bad data points
+    bad_data = []
+    for index, j in np.ndenumerate(fitness_array):
+        if j == 999.9:
+            bad_data.append(index)
 
     # normalization types
     # None: don't do any normalization, results in
     # a mix of pos and neg values
     if normalization == None:
+        for index, j in np.ndenumerate(fitness_array):
+            if index in bad_data:
+                fitness_array[index] = 0.0
         # average all the expreps
         mean_fitness_array = np.mean(fitness_array, axis=0)
     # 'stop': use the highest stop codon fitness as a cutoff, set it to
@@ -87,10 +89,12 @@ def process_fitness(fitness_data_file, native_seq_file,
             max_stop = np.amax(fitness_array[i,aminotonumber['*'],:])
             # shift everything by the max stop codon value
             fitness_array[i,:,:] = fitness_array[i,:,:] - max_stop
-            # set any values below zero to zero
-            for index, j in np.ndenumerate(fitness_array[i,:,:]):
-                if j < 0:
-                    fitness_array[i,index[0],index[1]] = 0.0
+        # set bad data points and values below zero to zero
+        for index, j in np.ndenumerate(fitness_array):
+            if j < 0:
+                fitness_array[index] = 0.0
+            if index in bad_data:
+                fitness_array[index] = 0.0
         # average all the expreps
         mean_fitness_array = np.mean(fitness_array, axis=0)
     # 'prob': same as stop, but then normalize each position column
@@ -102,12 +106,19 @@ def process_fitness(fitness_data_file, native_seq_file,
             # shift everything by the max stop codon value
             fitness_array[i,:,:] = fitness_array[i,:,:] - max_stop
             # set any values below zero to zero
-            for index, j in np.ndenumerate(fitness_array[i,:,:]):
-                if j < 0:
-                    fitness_array[i,index[0],index[1]] = 0.0
+        for index, j in np.ndenumerate(fitness_array):
+            if j < 0:
+                fitness_array[index] = 0.0
+            if index in bad_data:
+                fitness_array[index] = 0.0
         # average all the expreps
         mean_fitness_array = np.mean(fitness_array, axis=0)
-
+        # normalize each position independently
+        for i in range(seq_length):
+            mean_fitness_array[:,i] = mean_fitness_array[:,i] \
+              / np.sum(mean_fitness_array[:,i])
+            #print mean_fitness_array[:,i]
+            #print np.sum(mean_fitness_array[:,i])
     # end of the loop
 
     # compose data labels
