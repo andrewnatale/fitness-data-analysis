@@ -20,10 +20,17 @@ def process_fitness(fitness_data_file, native_seq_file,
 
     # mapping of aa types to numbers that loosely
     # orders them from hydrophobic to polar with 0 as 'stop'
-    aminotonumber = {'*': 0, 'A': 9, 'C': 8, 'E': 20, 'D': 19,
-                     'G': 10, 'F': 2, 'I': 5, 'H': 16, 'K': 18, 'M': 6,
-                     'L': 4, 'N': 14, 'Q': 15, 'P': 11, 'S': 12, 'R': 17,
-                     'T': 13, 'W': 1, 'V': 7, 'Y': 3}
+    aminotonumber = {'*': 0, 'W': 1,
+                     'F': 2, 'Y': 3,
+                     'L': 4, 'I': 5,
+                     'M': 6, 'V': 7,
+                     'C': 8, 'A': 9,
+                     'G': 10, 'P': 11,
+                     'S': 12, 'T': 13,
+                     'N': 14, 'Q': 15,
+                     'H': 16, 'R': 17,
+                     'K': 18, 'D': 19,
+                     'E': 20}
 
     # load a reference sequence - this will be used to normalize the data
     # as well as to provide labels. this should be a fasta file and only
@@ -68,9 +75,11 @@ def process_fitness(fitness_data_file, native_seq_file,
               = fitness_dict[elem][i]
     # look for and remember bad data points
     bad_data = []
+    print 'Bad data points:'
     for index, j in np.ndenumerate(fitness_array):
         if j == 999.9:
             bad_data.append(index)
+            print index
 
     # normalization types
     # None: don't do any normalization, results in
@@ -105,7 +114,7 @@ def process_fitness(fitness_data_file, native_seq_file,
             max_stop = np.amax(fitness_array[i,aminotonumber['*'],:])
             # shift everything by the max stop codon value
             fitness_array[i,:,:] = fitness_array[i,:,:] - max_stop
-            # set any values below zero to zero
+        # set any values below zero to zero
         for index, j in np.ndenumerate(fitness_array):
             if j < 0:
                 fitness_array[index] = 0.0
@@ -117,9 +126,7 @@ def process_fitness(fitness_data_file, native_seq_file,
         for i in range(seq_length):
             mean_fitness_array[:,i] = mean_fitness_array[:,i] \
               / np.sum(mean_fitness_array[:,i])
-            #print mean_fitness_array[:,i]
-            #print np.sum(mean_fitness_array[:,i])
-    # end of the loop
+    # end of the normalization loop
 
     # compose data labels
     sequence_labels = []
