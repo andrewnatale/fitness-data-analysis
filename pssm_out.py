@@ -35,6 +35,6 @@ def pssm_out(data, seq_range, positions, identifier, out_file):
 native_seq_file = '../../logo/P32835.fasta'
 fitness_data_file = '../../logo/gsp_log_data_101-140.csv'
 
-a, b, c = process_fitness(fitness_data_file, native_seq_file)
+a, b, c = process_fitness(fitness_data_file, native_seq_file, 'stop')
 
-pssm_out(a[1:,:], b, c[1:], 'header', 'pssm.txt')
+pssm_out(a[1:,:], b, c[1:], 'header', 'pssm_stop.txt')

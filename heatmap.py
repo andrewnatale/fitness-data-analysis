@@ -22,10 +22,9 @@ def plot_hmap(data, row_labels, column_labels):
 # hardcoded data filenames
 native_seq_file = '../../logo/P32835.fasta'
 fitness_data_file = '../../logo/gsp_log_data_101-140.csv'
-normalization = 'prob'
 
 a, b, c = process_fitness(fitness_data_file, native_seq_file, 'prob')
 
-# slice off stop codon data points
+# slice off stop codon data points and labels
 plot_hmap(a[1:,:], b, c[1:])
 #plot_hmap(a, b, c)
