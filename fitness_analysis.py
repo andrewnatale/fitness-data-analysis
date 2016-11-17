@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import math
 import complicated_heatmap
 
+#normalization = None
 normalization = 'stop'
 
 # hardcoded data filenames
@@ -43,7 +44,8 @@ def norm_none(fitness_array):
     return np.mean(fitness_array, axis=0)
 
 # 'stop': use the highest stop codon fitness as a cutoff, set it to
-# zero and shift all the data, then discard values below zero
+# zero and shift all the data, then discard values below zero, then
+# rescale so avg wt value is 1
 def norm_stop(fitness_array):
     mean_fitness_array = np.mean(fitness_array, axis=0)
     # get max stop codon values
@@ -128,8 +130,10 @@ for index, j in np.ndenumerate(fitness_array):
 
 if normalization == None:
     processed_array = norm_none(fitness_array)
+    midpoint = 0.0
 elif normalization == 'stop':
     processed_array = norm_stop(fitness_array)
+    midpoint = 1.0
 elif normalization == 'prob':
     pass
 
@@ -145,4 +149,10 @@ for value in sorted(aminotonumber.values()):
             mutation_labels.append(key)
 mutation_labels.reverse()
 
-complicated_heatmap.plot_map(processed_array[1:,21:28], mutation_labels[:-1], sequence_labels[21:28], 1, True)
+# various heatmaps
+# everything
+complicated_heatmap.plot_map(processed_array, mutation_labels, sequence_labels, midpoint, True)
+# remove stop codons
+complicated_heatmap.plot_map(processed_array[1:,:], mutation_labels[:-1], sequence_labels, midpoint, True)
+# just residues 122-127
+complicated_heatmap.plot_map(processed_array[1:,21:28], mutation_labels[:-1], sequence_labels[21:28], midpoint, True)
