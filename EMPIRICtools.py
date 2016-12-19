@@ -6,6 +6,7 @@ import datetime
 class EMPIRICProcessor(object):
     """A class to load and process EMPIRIC style saturation mutagenesis data."""
 
+    # standard aa to # map
     aminotonumber = {'*': 0, 'W': 1,
                      'F': 2, 'Y': 3,
                      'L': 4, 'I': 5,
@@ -44,7 +45,6 @@ class EMPIRICProcessor(object):
         self.header = str(reference[0].id)
         self.seq_loaded = True
 
-
     def seq_from_string(self, native_seq_string, identifier=None):
         """Load a reference sequence from an input string."""
 
@@ -57,7 +57,6 @@ class EMPIRICProcessor(object):
         else:
             self.header = 'null'
         self.seq_loaded = True
-
 
     def load_data_csv(self, source_csv):
         """Load preprocessed EMPIRIC data.
@@ -96,7 +95,6 @@ class EMPIRICProcessor(object):
                 self.fitness_array[idx] = np.nan
         self.data_loaded = True
 
-
     def generate_labels(self):
         """Compose data labels from available information."""
 
@@ -107,13 +105,8 @@ class EMPIRICProcessor(object):
         for n in range(self.first_resi, self.first_resi + self.data_length, 1):
             self.sequence_labels.append(('%s%d') % (self.native_seq[n-1], n))
         self.mutation_labels = []
-        # for value in sorted(self.aminotonumber.values()):
-        #     for key in self.aminotonumber:
-        #         if value == self.aminotonumber[key]:
-        #             self.mutation_labels.append(key)
         for key in sorted(self.numbertoamino):
             self.mutation_labels.append(self.numbertoamino[key])
-
 
     def rescale(self):
         """Rescale fitness scores so that the max stop codon score becomes zero
@@ -139,18 +132,16 @@ class EMPIRICProcessor(object):
         self.rescaled_array = self.rescaled_array / wt_avg
         self.rescaled = True
 
-
     def generate_freqencies(self):
         """Calculate a frequency for each mutation at each position."""
 
         if not self.rescaled:
             print('Cannot generate frequencies until data has been rescaled!')
             exit(0)
-        self.frequency_array = self.rescaled_array
+        self.frequency_array = np.copy(self.rescaled_array)
         for i in range(self.data_length):
             self.frequency_array[:,i] = self.frequency_array[:,i] / np.sum(self.frequency_array[:,i][~np.isnan(self.frequency_array[:,i])])
         self.frequency = True
-
 
     def pssm_out(self, position_range=None, outfile='pssm_out_EMPIRIC.txt'):
         """Write out frequency data for a range of positions as a position
@@ -191,8 +182,7 @@ class EMPIRICProcessor(object):
             pssm_out.write('XX\n')
             pssm_out.write('//\n')
 
-
-    def fasta_out(self, position_range=None, outfile='EMPIRIC_to_seq.fasta'):
+    def fasta_out(self, scale_factor=1000, position_range=None, outfile='EMPIRIC_to_seq.fasta'):
         """Write out frequency data for a range of positions as a bunch of
         dummy fasta format sequences which can be used to reconstruct the
         frequency data (with some loss of precision)."""
@@ -210,8 +200,6 @@ class EMPIRICProcessor(object):
         elif type(position_range) is int:
             lowP = position_range
             highP = lowP + 1
-        # how many sequences are we making?
-        scale_factor = 100
         # empty char array to hold sequences as they are constructed
         seq_array = np.zeros((highP-lowP, scale_factor), dtype=str)
         # convert frequecies to intergers that sum up to the scale factor for every position
