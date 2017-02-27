@@ -10,12 +10,13 @@ import sys
 # configurable script parameters:
 
 # target residues as a list of ints
-targets_yeast = [101,102,103,105,106,107,108,109,122,123,124,125,126,127]
+targets_yeast = [101,102,103,104,105,106,107,108,109,122,123,124,125,126,127]
+#targets_yeast = [104,]
 # radius (angstroms) around the target residues to look for res to repack
 radius = 9
 # output directory
-output_prefix = '/Users/anatale/Documents/school/UCSF/Kortemme_lab/rosetta_staging/resfiles'
-index_file = '/Users/anatale/Documents/school/UCSF/Kortemme_lab/code/structure-processing/aux_files/Gsp1_index_all.txt'
+output_prefix = '/Users/anatale/school/UCSF/Kortemme_lab/rosetta_staging/state_1a2k/1a2k_resfiles'
+index_file = '/Users/anatale/school/UCSF/Kortemme_lab/code/multi-state-design/structure-processing/aux_files/Gsp1_index_all.txt'
 
 amino_acids = 'WFYLIMVCAGPSTNQHRKDE'
 
@@ -38,7 +39,7 @@ def gen_resfiles(structure, target_number):
     pdb_num = None
     #print structure.id[:-8].lower(), target_number
     for index, row in seq_index.iterrows():
-        if row['pdb'] == structure.id[:-8].lower():
+        if row['pdb'][0:4] == structure.id[:-8].lower()[0:4]:
             if row['yeast_seq_num'] == target_number:
                 pdb_num = row['pdb_res_num']
     #print 'pdb_num:', pdb_num
@@ -75,7 +76,7 @@ for pdb_file in os.listdir(os.getcwd()):
 # so slice it off to check if the file is indexed
 for obj in pdb_files:
     print obj.id
-    if obj.id.lower()[:-8] in seq_index['pdb'].tolist():
+    if obj.id.lower()[:-8][0:4] in [n[0:4] for n in seq_index['pdb'].tolist()]:
         print 'indexed'
     else:
         print 'not indexed'

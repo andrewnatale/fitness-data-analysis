@@ -1,9 +1,9 @@
-#!/usr/bin/env python2
+#!/usr/bin/env
 #$ -S /usr/bin/python
 #$ -cwd
 #$ -r yes
 #$ -j y
-#$ -l h_rt=2:00:00
+#$ -l h_rt=12:00:00
 #$ -t 1-280
 #$ -l arch=linux-x64
 #$ -l mem_free=2G
@@ -23,7 +23,7 @@ script, job_pdb_list, job_paramsfile, job_resfile_list = sys.argv
 rosetta_fixbb = "/netapp/home/gkreder/Rosetta_new/source/bin/fixbb.default.linuxgccrelease"
 rosetta_db_dir = "/netapp/home/gkreder/Rosetta_new/database"
 
-resfiles_prefix = '/netapp/home/anatale/fixbb/resfiles'
+resfiles_prefix = '/netapp/home/anatale/fixbb_run3/resfiles'
 
 sge_task_id = 1
 if os.environ.has_key("SGE_TASK_ID"):
@@ -45,7 +45,7 @@ for resfile in resfiles:
         mutation_tag = tmp_resfile.split('_')[3].split('.')[0]
         break
 
-output_prefix = '/Users/anatale/Documents/school/UCSF/Kortemme_lab/rosetta_staging/testing'
+output_prefix = '/netapp/home/anatale/fixbb_run3/output'
 output_suffix = job_struct
 
 # make output directory

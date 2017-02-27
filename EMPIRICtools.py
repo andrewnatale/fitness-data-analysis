@@ -1,6 +1,7 @@
 import numpy as np
 from collections import Counter
 from Bio import SeqIO
+from statsmodels import robust
 import datetime
 
 class EMPIRICProcessor(object):
@@ -119,7 +120,7 @@ class EMPIRICProcessor(object):
         max_stop = np.amax(self.fitness_array[self.aminotonumber['*'],:])
         # shift everything by the max stop codon value
         self.rescaled_array = self.fitness_array - max_stop
-        # set bad data points and values below zero to zero
+        # set values below zero to zero
         for idx, j in np.ndenumerate(self.rescaled_array):
             if j < 0:
                 self.rescaled_array[idx] = 0.0
@@ -133,7 +134,8 @@ class EMPIRICProcessor(object):
         self.rescaled = True
 
     def generate_freqencies(self):
-        """Calculate a frequency for each mutation at each position."""
+        """Use rescaled fitness scores to calculate a frequency for each
+        mutation at each position."""
 
         if not self.rescaled:
             print('Cannot generate frequencies until data has been rescaled!')
@@ -143,46 +145,7 @@ class EMPIRICProcessor(object):
             self.frequency_array[:,i] = self.frequency_array[:,i] / np.sum(self.frequency_array[:,i][~np.isnan(self.frequency_array[:,i])])
         self.frequency = True
 
-    def pssm_out(self, position_range=None, outfile='pssm_out_EMPIRIC.txt'):
-        """Write out frequency data for a range of positions as a position
-        specific scoring matrix."""
-
-        if not self.frequency:
-            print('Cannot generate pssm file before frequency calculation!')
-            exit(0)
-        # unpack range - this can only handle one continuous range for now
-        if not position_range:
-            lowP = self.first_resi
-            highP = self.first_resi + self.data_length
-        elif type(position_range) is tuple:
-            lowP, highP = position_range
-            highP += 1
-        elif type(position_range) is int:
-            lowP = position_range
-            highP = lowP + 1
-        with open(outfile, 'w') as pssm_out:
-            # put an identifier on the first line
-            pssm_out.write('ID %s %s\n' % (datetime.datetime.today(), self.header))
-            # write position values
-            pssm_out.write('P0 ')
-            for key in sorted(self.numbertoamino):
-                if key != 0:
-                    pssm_out.write('%s ' % self.numbertoamino[key])
-            pssm_out.write('\n')
-            # write data for each position on a single line
-            for i in range(lowP, highP):
-                pssm_out.write('%s ' % str(i))
-                for j in self.frequency_array[:,i-self.first_resi]:
-                    if np.isnan(j):
-                        pssm_out.write('0.0 ')
-                    else:
-                        pssm_out.write('%s ' % str(j))
-                pssm_out.write('\n')
-            # write footer
-            pssm_out.write('XX\n')
-            pssm_out.write('//\n')
-
-    def fasta_out(self, scale_factor=1000, position_range=None, outfile='EMPIRIC_to_seq.fasta'):
+    def fasta_out_rescaled(self, scale_factor=1000, position_range=None, outfile='EMPIRIC_to_seq.fasta'):
         """Write out frequency data for a range of positions as a bunch of
         dummy fasta format sequences which can be used to reconstruct the
         frequency data (with some loss of precision)."""
@@ -190,22 +153,19 @@ class EMPIRICProcessor(object):
         if not self.frequency:
             print('Cannot generate fasta file before frequency calculation!')
             exit(0)
-        # unpack range - this can only handle one continuous range for now
         if not position_range:
-            lowP = self.first_resi
-            highP = self.first_resi + self.data_length
-        elif type(position_range) is tuple:
-            lowP, highP = position_range
-            highP += 1
-        elif type(position_range) is int:
-            lowP = position_range
-            highP = lowP + 1
+            selected_positions = range(self.first_resi, self.first_resi + self.data_length, 1)
+        else:
+            selected_positions = [int(i) for i in position_range]
         # empty char array to hold sequences as they are constructed
-        seq_array = np.zeros((highP-lowP, scale_factor), dtype=str)
-        # convert frequecies to intergers that sum up to the scale factor for every position
-        for i in range(lowP-self.first_resi, highP-self.first_resi):
+        seq_array = np.zeros((len(selected_positions), scale_factor), dtype=str)
+        for pidx,position in enumerate(selected_positions):
+            # get array index
+            for lidx,label in enumerate(self.sequence_labels):
+                if int(label[1:]) == position:
+                    target_idx = lidx
             # first scale up the floats and convert NaN to zero
-            unrounded = np.nan_to_num(self.frequency_array[1:,i]) * scale_factor
+            unrounded = np.nan_to_num(self.frequency_array[1:,target_idx]) * scale_factor
             # round and convert to ints
             rounded = np.around(unrounded).astype(int)
             # adjust highest value so that everything sums correctly
@@ -217,7 +177,7 @@ class EMPIRICProcessor(object):
             for idx,j in np.ndenumerate(rounded):
                 aa_count = 0
                 while aa_count < j:
-                    seq_array[i-(lowP-self.first_resi),seq_idx] = str(self.numbertoamino[idx[0]+1])
+                    seq_array[pidx,seq_idx] = str(self.numbertoamino[idx[0]+1])
                     aa_count += 1
                     seq_idx += 1
         # write from array into output file
@@ -225,3 +185,29 @@ class EMPIRICProcessor(object):
             for i in range(scale_factor):
                 fasta_out.write('>seq %d\n' % (i+1))
                 fasta_out.write('%s\n' % ''.join(seq_array[:,i]))
+
+    def errorstats(self):
+        """Use the spread in WT fitness scores to estimate an error on each score"""
+
+        if not self.data_loaded:
+            print('No data found! Cannot calculate error before a file has been loaded!')
+            exit(0)
+        # using only unscaled data:
+        self.stop_vals = self.fitness_array[self.aminotonumber['*'],:]
+        self.wt_vals = np.empty(0)
+        for j in range(self.first_resi, self.first_resi + self.data_length, 1):
+            self.wt_vals = np.append(self.wt_vals, self.fitness_array[self.aminotonumber[self.native_seq[j-1]], j - self.first_resi])
+        self.stop_vals = self.stop_vals[~np.isnan(self.stop_vals)]
+        self.wt_vals = self.wt_vals[~np.isnan(self.wt_vals)]
+        self.stop_mean = np.mean(self.stop_vals)
+        self.stop_std = np.std(self.stop_vals)
+        self.stop_mad = robust.scale.mad(self.stop_vals)
+        self.wt_mean = np.mean(self.wt_vals)
+        self.wt_std = np.std(self.wt_vals)
+        self.wt_mad = robust.scale.mad(self.wt_vals)
+        print('stop')
+        print('mean %f, std %f, mad %f' % (self.stop_mean, self.stop_std, self.stop_mad))
+        print(np.amax(self.stop_vals), np.amin(self.stop_vals))
+        print('wt')
+        print('mean %f, std %f, mad %f' % (self.wt_mean, self.wt_std, self.wt_mad))
+        print(np.amax(self.wt_vals), np.amin(self.wt_vals))

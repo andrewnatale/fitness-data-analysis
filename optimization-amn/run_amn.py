@@ -18,40 +18,50 @@ from io import *
 import os
 import sys
 
-# sge_task_id = 1
-# if os.environ.has_key("SGE_TASK_ID"):
-#sge_task_id = os.getenv("SGE_TASK_ID", default=1)
-sge_task_id = sys.argv[1]
+verbose = True
 
-#output_path = '/kortemmelab/home/anatale/multistate/output'
-output_path = '/Users/anatale/Documents/school/UCSF/Kortemme_lab/code/testing'
+infile = sys.argv[1]
+task_id = sys.argv[2]
+
+#output_path = '/kortemmelab/home/anatale/opt3/output'
+output_path = '/Users/anatale/school/UCSF/Kortemme_lab/code/testing'
 try:
     os.makedirs(output_path)
 except OSError:
     if not os.path.isdir(output_path):
         raise
 
-#input_path = '/kortemmelab/home/anatale/multistate'
-input_path = '/Users/anatale/Documents/school/UCSF/Kortemme_lab/code/multi-state-design'
+#input_path = '/kortemmelab/home/anatale/opt3/opt_rnd3'
+input_path = '/Users/anatale/school/UCSF/Kortemme_lab/code/multi-state-design/opt_rnd3'
 
 # options to load from jobsfile based on task id:
 # 1) targetFreqs_filename
 # 2) data_filename
 # 3) similarityMeasure (as code, possible: JS, CS, EW, EWM, KL, C2)
 # 4) iterations
+# 5) bool of states to search
 
-infile = os.path.join(input_path, 'optimizer_jobs.lst')
+#infile = os.path.join(input_path, 'optimizer_jobs_122_127.lst')
+#infile = os.path.join(input_path, 'optimizer_jobs_101_109.lst')
 
 with open(infile, 'r') as jobsfile:
     jobs = jobsfile.readlines()
 jobs = [i.strip('\n') for i in jobs]
 
 for job in jobs:
-    job_id, targetFreqs_filename, data_filename, simMeas_id, iterations = job.split()
-    if job_id == str(sge_task_id):
+    job_params = job.split()
+    job_id = job_params[0]
+    job_tag = job_params[1]
+    minPosition = int(job_params[2])
+    targetFreqs_filename = job_params[3]
+    data_filename = job_params[4]
+    simMeas_id = job_params[5]
+    iterations = int(job_params[6])
+    #iterations = 4
+    usedstates = numpy.array(job_params[7:]).astype(dtype=bool)
+    #print(usedstates)
+    if job_id == str(task_id):
         print('using options for job %s\n' % job_id)
-        #iterations = int(iterations)
-        iterations = 4
         break
 
 #targetFreqs = "/Users/anatale/Documents/school/UCSF/Kortemme_lab/code/fitness-data-analysis/highscale_trim.fasta"
@@ -59,40 +69,40 @@ targetFreqs = os.path.join(input_path, targetFreqs_filename)
 data = os.path.join(input_path, data_filename)
 #data = "/Users/anatale/Documents/school/UCSF/Kortemme_lab/code/fitness-data-analysis/testing_microstates.tsv"
 
-print("Hello!\n")
-MACROSTATES = enum('apo_GEF','GTP_GAP','GDP','GTP_importin')
+MACROSTATES = enum('1i2m','1a2k','1k5d','3gj0','importin','composite')
 RESIDUES = enum('A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y')
 
-# only optimizing backrub temperature and steepness
-ensembleSizes = numpy.array([40,50,60])
+# parameter reanges to optimize
+ensembleSizes = numpy.array([60,70,80,90,100])
 backrubTemps = numpy.array([0.9])
 #boltzmannTemps = numpy.array([-1.0]) # set below
 steepnessRange = numpy.array([0.5, 5])
-minWeights = numpy.array([0, 0, 0, 0])
-maxWeights = numpy.array([1, 1, 1, 1])
+minWeights = numpy.array([0, 0, 0, 0, 0, 0])
+maxWeights = numpy.array([1, 1, 1, 1, 1, 1])
 
 optimizer = Optimizer(MACROSTATES)
 optimizer.readTargetFrequencies(targetFreqs)
 print('pos before loading data: ', optimizer.nPositions)
 #optimizer.readData(data)
-optimizer.readMicrostateData(data, minPosition=122)
+optimizer.readMicrostateData(data, minPosition=minPosition)
 print('pos after loading data: ', optimizer.nPositions)
 # examine model
 for model_id in optimizer.models:
-    #print('id:',model_id)
-    #print('obj:',optimizer.models[model_id])
-    # print(optimizer.models[model_id].nMacrostates)
-    # print(optimizer.models[model_id].ensembleSize)
-    # print(optimizer.models[model_id].backrubTemp)
-    # print(optimizer.models[model_id].boltzmannTemp)
-    # print(optimizer.models[model_id].weights)
-    # print(optimizer.models[model_id].steepness)
-    # print(optimizer.models[model_id].nPositions)
-    # print(optimizer.models[model_id].macrostatesUsed)
-    # print(optimizer.models[model_id].useMicrostateData)
-    # print(optimizer.models[model_id].positionOffset)
-    # print(optimizer.models[model_id].macrostateResidueEnergies.shape)
-    # print(optimizer.models[model_id].macrostateResidueEnergies.shape)
+    if verbose:
+        print('id:',model_id)
+        print('obj:',optimizer.models[model_id])
+        print(optimizer.models[model_id].nMacrostates)
+        print(optimizer.models[model_id].ensembleSize)
+        print(optimizer.models[model_id].backrubTemp)
+        print(optimizer.models[model_id].boltzmannTemp)
+        print(optimizer.models[model_id].weights)
+        print(optimizer.models[model_id].steepness)
+        print(optimizer.models[model_id].nPositions)
+        print(optimizer.models[model_id].macrostatesUsed)
+        print(optimizer.models[model_id].useMicrostateData)
+        print(optimizer.models[model_id].positionOffset)
+        print(optimizer.models[model_id].macrostateResidueEnergies.shape)
+        print(optimizer.models[model_id].microstateResidueEnergies.shape)
 
     if optimizer.models[model_id].useMicrostateData:
         print('using microstates')
@@ -104,10 +114,10 @@ for model_id in optimizer.models:
         boltzmannTemps = numpy.array([-1.0])
 print("Done reading data files");
 
-print(optimizer.targetFrequencies.shape)
-print(optimizer.nPositions)
-print(optimizer.minPosition)
-#print(optimizer.maxPos)
+if verbose:
+    print(optimizer.targetFrequencies.shape)
+    print(optimizer.nPositions)
+    print(optimizer.minPosition)
 
 def optimize():
     if microstate_optimize == True:
@@ -129,13 +139,14 @@ def optimize():
         search.setMaxIterations(iterations)
         # set parameters
         search.setParamBounds(ensembleSizes, backrubTemps, boltzmannTemps, steepnessRange, minWeights, maxWeights)
-        search.setSearchParameters(True, False, True, True, numpy.array([True, True, True, True]))
-        optimizer.useAlgorithm(search)
+        search.setSearchParameters(True, False, True, True, usedstates)
         # load search algorithm
+        optimizer.useAlgorithm(search)
+        # optimize
         optimizer.optimize()
         #now = datetime.now()
-        optimizer.writeFrequenciesToFASTA(optimizer.getBestFrequencies(), os.path.join(output_path, "var_ensembles_"+str(sge_task_id)+".fasta"))
-        optimizer.writeBestParamsToText(os.path.join(output_path, "var_ensembles_"+str(sge_task_id)))
+        optimizer.writeFrequenciesToFASTA(optimizer.getBestFrequencies(), os.path.join(output_path, "var_ensembles_"+job_tag+".fasta"))
+        optimizer.writeBestParamsToText(os.path.join(output_path, "var_ensembles_"+job_tag))
     else:
         # init search algorithm
         if simMeas_id == 'JS':
@@ -154,13 +165,14 @@ def optimize():
         search.setMaxIterations(iterations)
         # set parameters
         search.setParamBounds(ensembleSizes, backrubTemps, boltzmannTemps, steepnessRange, minWeights, maxWeights)
-        search.setSearchParameters(False, False, False, True, numpy.array([True, True, True, True]))
-        optimizer.useAlgorithm(search)
+        search.setSearchParameters(False, False, False, True, usedstates)
         # load search algorithm
+        optimizer.useAlgorithm(search)
+        # optimize
         optimizer.optimize()
         #now = datetime.now()
-        optimizer.writeFrequenciesToFASTA(optimizer.getBestFrequencies(), os.path.join(output_path, "fixed_ensembles_"+str(sge_task_id)+".fasta"))
-        optimizer.writeBestParamsToText(os.path.join(output_path, "fixed_ensembles_"+str(sge_task_id)))
+        optimizer.writeFrequenciesToFASTA(optimizer.getBestFrequencies(), os.path.join(output_path, "fixed_ensembles_"+job_tag+".fasta"))
+        optimizer.writeBestParamsToText(os.path.join(output_path, "fixed_ensembles_"+job_tag))
     #print(optimizer.getBestParameters()['match'])
 
 optimize()

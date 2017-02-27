@@ -7,7 +7,7 @@ from enumeration import enum
 from copy import *
 
 # should the macrostates be hard-coded? probably not if this ends up being actually used for tuning other models...
-MACROSTATES_T = enum("E-DHF-NADPH", "E-NADPH", "E-OPEN", "E-THF", "E-THF-NADPX", "TS");
+#MACROSTATES_T = enum("E-DHF-NADPH", "E-NADPH", "E-OPEN", "E-THF", "E-THF-NADPX", "TS");
 RESIDUES = enum('A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y');
 
 class Model:
@@ -36,7 +36,7 @@ class Model:
 	recovery = -1.0;								# float assigned by the outside similiartyMeasure to how well this mode recovers the sequence
 	# TODO: check if macrostatesUsed is actually useful
 	macrostatesUsed = numpy.array(False);			# bool[], macrostates examined during optimization
-	
+
 	# vars used when microstate data is involved
 	useAltAveragingMethod = False;					# use accepted avg method or (the alt) xinjie's expression?
 	isFrequenciesCalculated = False;				# prevent unnecessary calculations
@@ -90,13 +90,13 @@ class Model:
 		# a little checker to prevent two identical entries, used in function addMacrostateData()
 		for i in range(self.nMacrostates):
 			for j in range(self.nPositions):
-				self.macrostateResidueEnergies[j][0][i] = 65536.0; 
+				self.macrostateResidueEnergies[j][0][i] = 65536.0;
 
 		if self.useMicrostateData:
 			self.areMicrostatesPicked = False;
 			self.microstatesUsed = numpy.zeros([0]);
 			self.microstateCounts = numpy.zeros([self.nPositions, self.nMacrostates], dtype = int);
-			self.microstateResidueEnergies = numpy.zeros([self.nPositions, 20, self.nMacrostates, 700], dtype = numpy.float64); # magic number 700 - max expected number of microstates		
+			self.microstateResidueEnergies = numpy.zeros([self.nPositions, 20, self.nMacrostates, 700], dtype = numpy.float64); # magic number 700 - max expected number of microstates
 
 	def constructFromExisting(existing, ensembleSize:int, backrubTemp:float, boltzmannTemp:float, weights:numpy.array, steepness:float):
 		"""
@@ -109,7 +109,7 @@ class Model:
 		@param weights			float[], new weights
 		@return Model
 		"""
-		
+
 		new = Model(existing.MACROSTATES, ensembleSize, backrubTemp, boltzmannTemp, weights, steepness, existing.nPositions, existing.positionOffset, existing.useMicrostateData);
 		new.macrostatesUsed = existing.macrostatesUsed;
 		new.microstatesUsed = existing.microstatesUsed;
@@ -139,7 +139,7 @@ class Model:
 			#print("!", end='')
 			new.microstateResidueEnergies = existing.microstateResidueEnergies;
 			new.microstateCounts = existing.microstateCounts;
-		
+
 		return new;
 
 	def setPositionMap(self, posMap:dict) -> None:
@@ -170,7 +170,7 @@ class Model:
 			pos = position - self.positionOffset;
 		else:
 			pos = self.positionMap[position];
-			
+
 		if self.macrostateResidueEnergies[pos][0][macrostate] != 65536.0:
 			raise Exception("Something something this entry already full");
 
@@ -239,7 +239,7 @@ class Model:
 					for k in range(self.nMacrostates):
 						for l in range(self.ensembleSize):
 							self.selectedMicrostateEnergies[i][j][k][l] = self.microstateResidueEnergies[i][j][k][self.microstatesUsed[i][k][l]]
-			
+
 			self.areMicrostatesPicked = True;
 
 		#print(self.selectedMicrostateEnergies[0][0]);
@@ -248,7 +248,7 @@ class Model:
 			if (self.boltzmannTemp == 0.0):
 				self.macrostateResidueEnergies = numpy.amin(self.selectedMicrostateEnergies, axis = 3);
 			elif (self.boltzmannTemp == -1.0):
-				self.macrostateResidueEnergies = numpy.mean(self.selectedMicrostateEnergies, axis = 3); 
+				self.macrostateResidueEnergies = numpy.mean(self.selectedMicrostateEnergies, axis = 3);
 			else:
 				self.macrostateResidueEnergies = numpy.sum(self.selectedMicrostateEnergies * numpy.exp(self.selectedMicrostateEnergies / -self.boltzmannTemp), axis = 3) / numpy.sum(numpy.exp(self.selectedMicrostateEnergies / -self.boltzmannTemp), axis = 3);
 		else:
@@ -354,7 +354,7 @@ class Model:
 
 		@return float[][]
 		"""
-		
+
 		# this is a special instance for storing data
 		if self.ensembleSize == 0 and self.useMicrostateData:
 			raise PermissionError("This object is a raw data storage instance and this call should not have been made");
@@ -396,11 +396,11 @@ class Model:
 	def __eq__(self, other):
 		assert(isinstance(other, Model));
 		return self.recovery == other.recovery;		# see, this is where static typing comes in useful. it lets autocomplete see the fields of other
-	
+
 	def __le__(self, other):
 		assert(isinstance(other, Model));
 		return self.recovery <= other.recovery;
-	
+
 	def __lt__(self, other):
 		assert(isinstance(other, Model));
 		return self.recovery < other.recovery;

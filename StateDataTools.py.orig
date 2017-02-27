@@ -44,9 +44,7 @@ class StateProcessor(object):
         if self.seq_loaded:
             print('Already loaded a reference sequence, cannot load another!')
             exit(0)
-        # use BioPython's SeqIO to load a fasta
         reference = list(SeqIO.parse(native_seq_fasta, 'fasta'))
-        # get info from the first fasta entry
         self.native_seq = str(reference[0].seq)
         self.header = str(reference[0].id)
         self.seq_loaded = True
@@ -71,7 +69,7 @@ class StateProcessor(object):
             print('Must load sequence before generating labels!')
             exit(0)
         # generate letter/number sequence labels for heatmaps
-        # wt_indicators is a list of indices for normalizing arrays
+        # wt_indicators is a list of indices for rescaling arrays
         self.sequence_labels = []
         self.wt_indicators = []
         for position in self.position_ids:
@@ -88,54 +86,39 @@ class StateProcessor(object):
         a macrostate is a 4D array containing rosetta scores. It also contains
         a dictionary of labels to identify the indices."""
 
-        # it is necessary to call the 'generate_labels' method before loading
-        # data, because we need the 'wt_indicators' list in order to init
-        # macrostate objects
         if not self.labeled:
             print('Must generate labels before loading state data!')
             exit(0)
         if not state_name:
             state_name = 'state_%d' % self.default_name
             self.default_name += 1
-        # the pickle file needs to consist of a tuple with the first item being
-        # a 3D array of rosetta energy scores, and the second item being a
-        # dictionary mapping the names of microstates to indices in the array
         with open(data_file, 'rb') as data:
             state_array, state_labels = pkl.load(data)
         self.state_list.append(Macrostate(state_array, state_labels, state_name, self.wt_indicators))
         self.state_count += 1
 
-    def write_microstate_seqs(self, position_range='all', label_string=None):
+    def write_microstate_seqs(self, position_range='all'):
         """Find and write lowest energy microstate sequences in fasta format."""
 
-        # try to handle several ways of supplying target positions - the can be
-        # a list or a range iterator
         if position_range == 'all':
             position_range = self.position_ids
         else:
             # convert iterator to list
             position_range = [i for i in position_range]
-        # convert position numbers into indices
         selected_indices = [elem[0] for elem in enumerate(self.position_ids) if elem[1] in position_range]
-        if not label_string:
-            label_string = datetime.datetime.today()
-        # generate one fasta file for every loaded macrostate
         for state in self.state_list:
-            with open('%s_%s.fasta' % (state.state_name, label_string), 'w') as fasta_out:
-                # generate one fasta entry for each microstate
+            with open('%s.fasta' % state.state_name, 'w') as fasta_out:
                 for microstate in state.microstate_list:
-                    # compose an identifier for each fasta entry
+                    # compose a sequence id
                     id_string = '>%s %s %s positions: %s' % (state.state_name,
                                                              microstate.substate_label,
                                                              microstate.us_name,
                                                              str(position_range).strip('[]'))
                     # ask the microstate what its lowest energy sequence is
                     best_seq = ''
-                    # only pick out specified positions
                     for idx,code in enumerate(microstate.find_best_seq()):
                         if idx in selected_indices:
                             best_seq += self.numbertoamino[code]
-                    # write the fasta entry
                     fasta_out.write('%s\n' % id_string)
                     fasta_out.write('%s\n' % best_seq)
 
@@ -143,35 +126,25 @@ class StateProcessor(object):
         """Write out averaged macrostate data in a format that Zhang's
         multistate design optimizer can read."""
 
-        # try to handle several ways of supplying target positions - the can be
-        # a list or a range iterator
         if position_range == 'all':
             position_range = self.position_ids
         else:
             # convert iterator to list
             position_range = [i for i in position_range]
-        # convert position numbers into indices
         selected_indices = [elem[0] for elem in enumerate(self.position_ids) if elem[1] in position_range]
-        # give the output file a unique default name
         if outname == 'default':
             outname = 'avg_macrostates_%s.tsv' % datetime.datetime.today()
-        # write a tsv file in the required format
         with open(outname, 'w') as tsvfile:
             tsvfile.write('average macrostate energies for positions: %s\n' % str(position_range).strip('[]'))
             for state in self.state_list:
                 for pos_idx in selected_indices:
-                    # write data identifiers in the first 5 fields
-                    tsvfile.write('%s\t%s\t%s\t%s\t%s\t' % (state.state_name, # macrostate name
-                                                            '0.9', # backrub temp
-                                                            str(state.microstate_count), # how many microstates?
-                                                            'mean', # how were microstates averaged?
-                                                            #str(self.position_ids[pos_idx]), # position in sequence
-                                                            str(pos_idx+1) # remap positions to avoid confusing the optimizer
+                    tsvfile.write('%s\t%s\t%s\t%s\t%s\t' % (state.state_name,
+                                                            '0.9',
+                                                            str(state.microstate_count),
+                                                            'mean',
+                                                            str(self.position_ids[pos_idx]),
                                                             )
                                   )
-                    # here's the fun part - in the 6th field write the data in
-                    # the form of a python dictionary, because that's what the
-                    # optimizer wants to read
                     tsvfile.write('{')
                     for mut_idx, energy in np.ndenumerate(state.avg_state_array[:,pos_idx]):
                         tsvfile.write("'%s':%f, " % (self.numbertoamino[mut_idx[0]+1], energy))
@@ -181,43 +154,31 @@ class StateProcessor(object):
         """Write out all microstate data in a format that Zhang's
         mutistate design optimizer can read."""
 
-        # try to handle several ways of supplying target positions - the can be
-        # a list or a range iterator
         if position_range == 'all':
             position_range = self.position_ids
         else:
             # convert iterator to list
             position_range = [i for i in position_range]
-        # convert position numbers into indices
-        selected_indices = [elem[0] for elem in enumerate(self.position_ids) if elem[1] in position_range]
-        # give the output file a unique default name
         if outname == 'default':
             outname = 'microstates_%s.tsv' % datetime.datetime.today()
-        # write a tsv file in the required format
+        selected_indices = [elem[0] for elem in enumerate(self.position_ids) if elem[1] in position_range]
         with open(outname, 'w') as tsvfile:
             tsvfile.write('microstate energies for positions: %s\n' % str(position_range).strip('[]'))
             for state in self.state_list:
                 for microstate in state.microstate_list:
                     for pos_idx in selected_indices:
-                        # write data identifiers in the first 4 fields
-                        tsvfile.write('%s\t%s\t%s\t%s\t' % (state.state_name, # macrostate name
-                                                            '0.9', # backrub temp
-                                                            #str(self.position_ids[pos_idx]), # position
-                                                            str(pos_idx+1), # remap positions to avoid confusing the optimizer
-                                                            '%s_%s' % (microstate.substate_label, microstate.us_name) # microstate identifier
+                        tsvfile.write('%s\t%s\t%s\t%s\t' % (state.state_name,
+                                                            '0.9',
+                                                            str(self.position_ids[pos_idx]),
+                                                            microstate.us_name
                                                             )
                                       )
-                        # here's the fun part - in the 5th field write the data in
-                        # the form of a python dictionary, because that's what the
-                        # optimizer wants to read
                         tsvfile.write('{')
                         for mut_idx, energy in np.ndenumerate(microstate.microstate_array[:,pos_idx]):
                             tsvfile.write("'%s':%f, " % (self.numbertoamino[mut_idx[0]+1], energy))
                         tsvfile.write('}\n')
 
 class Macrostate(object):
-    """Class to hold and organize data for one macrostate composed of many
-    microstates."""
 
     def __init__(self, state_array, state_labels, state_name, wt_indicators, exp_scale_factor=3.0):
         """Load a macrostate, adjust all energies to make WT = 0, and
@@ -228,22 +189,32 @@ class Macrostate(object):
         self.state_labels = state_labels
         self.microstate_list = []
         self.microstate_count = 0
-        # iterate over the label dictionary to access each microstate
-        for label in state_labels:
-            us_idx = state_labels[label]
-            # adjust each position column in each microstate to be relative to WT
-            for pos_idx, wt_idx in enumerate(wt_indicators):
-                self.state_array[us_idx,:,pos_idx] \
-                  -= self.state_array[us_idx,wt_idx,pos_idx]
-            # store each microstate in a list
-            self.microstate_list.append(Microstate(self.state_array[us_idx,:,:], label, us_idx))
-            self.microstate_count += 1
+        # these nested for loops use the labels to iterate through microstates,
+        # its ugly, but its the best thing I could come up with short of
+        # completely redesigning my data structures
+        for sub_label in sorted(self.state_labels):
+            sub_idx = state_labels[sub_label][0]
+            #print(sub_label, sub_idx)
+            for us_name in sorted(state_labels[sub_label][1]):
+                us_idx = state_labels[sub_label][1][us_name]
+                #print(us_name, us_idx)
+                # adjust energies so that everything is relative to wt=0
+                for pos_idx, wt_idx in enumerate(wt_indicators):
+                    self.state_array[sub_idx,us_idx,:,pos_idx] \
+                      -= self.state_array[sub_idx,us_idx,wt_idx,pos_idx]
+                # store microstate info
+                self.microstate_list.append(
+                  Microstate(self.state_array[sub_idx,us_idx,:,:],
+                             (sub_label, us_name),
+                             (sub_idx, us_idx)
+                             )
+                                            )
+                self.microstate_count += 1
         # build averaged and exponential arrays
-        self.avg_state_array = np.mean(self.state_array, 0)
+        self.avg_state_array = np.mean(self.state_array, (0,1))
         self.exp_state_array = np.exp((-1.0 * self.avg_state_array) / exp_scale_factor)
 
     def list_microstates(self):
-        # print some info for troubleshooting
         print('%d microstates loaded' % self.microstate_count)
         for microstate in self.microstate_list:
             print(microstate.substate_label, microstate.us_name, microstate.sub_idx, microstate.us_idx)
@@ -251,21 +222,18 @@ class Macrostate(object):
 
 
 class Microstate(object):
-    """Class to hold data for one microstate."""
 
-    def __init__(self, state_array, state_labels, us_idx):
+    def __init__(self, state_array, state_labels, indices):
         """Store data and labels for an individual microstate."""
 
         self.microstate_array = state_array
         self.substate_label, self.us_name = state_labels
-        self.us_idx = us_idx
+        self.sub_idx, self.us_idx = indices
 
     def find_best_seq(self):
         """Determine the lowest energy amino acid at each position and return
         a list of the amino acid numeric ids."""
 
-        # for each position, find the index of the lowest energy score (add 1 to
-        # make it simple to lookup in the mapping dictionary) and save to a list
         self.lowest_scores = []
         for n in range(self.microstate_array.shape[1]):
             self.lowest_scores.append(self.microstate_array[:,n].argmin() + 1)

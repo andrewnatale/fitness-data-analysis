@@ -4,7 +4,7 @@
 #$ -r yes
 #$ -j y
 #$ -l h_rt=48:00:00
-#$ -t 1-31
+#$ -t 1-21
 #$ -l arch=linux-x64
 #$ -l mem_free=2G
 
@@ -17,11 +17,11 @@ import os
 import subprocess
 import shlex
 
-rosetta_score_jd2 = "/Users/anatale/Rosetta/main/source/bin/score_jd2.default.macosclangrelease"
-rosetta_db_dir = "/Users/anatale/Rosetta/main/database"
+rosetta_score_jd2 = "/netapp/home/gkreder/Rosetta_new/source/bin/score_jd2.default.macosclangrelease"
+rosetta_db_dir = "/netapp/home/gkreder/Rosetta_new/database"
 
-job_list_path = '/Users/anatale/Documents/school/UCSF/Kortemme_lab/rosetta_staging/state_lists/fixbb_jobs.txt'
-pdb_search_path = '/Users/anatale/Documents/school/UCSF/Kortemme_lab/data'
+job_list_path = '/netapp/home/anatale/fixbb_run3/state_lists/fixbb_jobs.txt'
+pdb_search_path = '/netapp/home/anatale/fixbb_run3/output'
 output_prefix = os.getcwd()
 
 sge_task_id = 1

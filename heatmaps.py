@@ -50,17 +50,28 @@ class MidpointNormalize(Normalize):
         return result
 
 # plot one heatmap in figure
-def single_map(data, row_labels, col_labels, desc=None, use_mpoint=False, mpoint=0.0, set_limits=None, show_cbar=False):
+def single_map(data, row_labels, col_labels, desc=None, use_mpoint=False, mpoint=0.0, set_limits=None, show_cbar=False, reverse_cmap=False):
     xmin, xmax = 0, data.shape[1]
     ymin, ymax = 0, data.shape[0]
     masked_array = np.ma.array(data, mask=np.isnan(data))
 
+    # b/c matplotlib is dumb, flip the row labels so they match the heatmap orientation
+    row_labels.reverse()
+
     if use_mpoint:
-        cmap = matplotlib.cm.coolwarm_r
-        print('using cmap: coolwarm')
+        if reverse_cmap:
+            cmap = matplotlib.cm.coolwarm_r
+            print('using cmap: coolwarm_r')
+        else:
+            cmap = matplotlib.cm.coolwarm
+            print('using cmap: coolwarm')
     else:
-        cmap = matplotlib.cm.plasma
-        print('using cmap: plasma')
+        if reverse_cmap:
+            cmap = matplotlib.cm.plasma_r
+            print('using cmap: plasma_r')
+        else:
+            cmap = matplotlib.cm.plasma
+            print('using cmap: plasma')
 
     cmap.set_bad('black')
 
@@ -86,8 +97,6 @@ def single_map(data, row_labels, col_labels, desc=None, use_mpoint=False, mpoint
         plt.axes().set_title(desc)
 
     # Major ticks
-    # b/c matplotlib is dumb, flip the row labels so they match the heatmap orientation
-    row_labels.reverse()
     plt.yticks(np.arange(0.5, data.shape[0]+0.5, 1), row_labels, fontsize=10)
     plt.xticks(np.arange(0.5, data.shape[1]+0.5, 1), col_labels, fontsize=10, rotation='vertical')
     # Minor ticks
@@ -109,15 +118,27 @@ def single_map(data, row_labels, col_labels, desc=None, use_mpoint=False, mpoint
     plt.show()
 
 # plot multiple heatmaps side by side - they will all use the same options
-def new_multi_map(data_list, row_labels, col_labels, desc_list=None, use_mpoint=False, mpoint=0.0, set_limits=None, show_cbar=False):
+def new_multi_map(data_list, row_labels, col_labels, desc_list=None, use_mpoint=False, mpoint=0.0, set_limits=None, show_cbar=False, reverse_cmap=False):
     count_plots = len(data_list)
+
     if use_mpoint:
-        cmap = matplotlib.cm.coolwarm
-        print('using cmap: coolwarm')
+        if reverse_cmap:
+            cmap = matplotlib.cm.coolwarm_r
+            print('using cmap: coolwarm_r')
+        else:
+            cmap = matplotlib.cm.coolwarm
+            print('using cmap: coolwarm')
     else:
-        cmap = matplotlib.cm.plasma
-        print('using cmap: plasma')
+        if reverse_cmap:
+            cmap = matplotlib.cm.plasma_r
+            print('using cmap: plasma_r')
+        else:
+            cmap = matplotlib.cm.plasma
+            print('using cmap: plasma')
     cmap.set_bad('black')
+
+    # b/c matplotlib is dumb, flip the row labels so they match the heatmap orientation
+    row_labels.reverse()
 
     plot_id = 1
     fig = plt.figure()
@@ -149,8 +170,6 @@ def new_multi_map(data_list, row_labels, col_labels, desc_list=None, use_mpoint=
             ax.set_title(desc_list[plot_id-1])
 
         # Major ticks
-        # b/c matplotlib is dumb, flip the row labels so they match the heatmap orientation
-        row_labels.reverse()
         plt.yticks(np.arange(0.5, data.shape[0]+0.5, 1), row_labels, fontsize=10)
         plt.xticks(np.arange(0.5, data.shape[1]+0.5, 1), col_labels, fontsize=10, rotation='vertical')
         # Minor ticks

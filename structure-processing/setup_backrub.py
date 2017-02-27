@@ -18,14 +18,14 @@ import sys
 # target residues for defining the pivot residues, as a set of ints
 targets_yeast = {122,123,124,125,126,127}
 # radius (angstroms) around the target residues to look for pivot residues
-radius = 9
+radius = 50
 # output directory
 output_dir = 'backrub_ready'
 output_prefix = os.path.join(os.getcwd(), output_dir)
 output_suffix = 'backrub'
 #output_prefix = '/Users/anatale/Documents/school/UCSF/Kortemme_lab/code/structure_scripts/pdbs/test'
 # needs this script to actually write the params file
-rosetta_pyscripts = ''
+rosetta_pyscripts = '/Users/anatale/Rosetta/main/source/scripts/python/public'
 molfile_to_params = 'molfile_to_params.py'
 # generate pml script?
 pml_file = True
@@ -70,7 +70,7 @@ class PivotsParamsGen(object):
         self.structure = parser.get_structure(pdb_file[:-4], pdb_file)
         # this must be lowercase to properly address the index file
         self.name = self.structure.id.lower()
-        if self.name in seq_index['pdb'].tolist():
+        if self.name[0:4] in [n[0:4] for n in seq_index['pdb'].tolist()]:
             self.indexed = True
         else:
             self.indexed = False
@@ -79,7 +79,7 @@ class PivotsParamsGen(object):
         self.targets_pdb_num = set()
         # translate yeast seq# to pdb seq# using index file
         for index, row in seq_index.iterrows():
-            if row['pdb'] == self.name:
+            if row['pdb'][0:4] == self.name[0:4]:
                 if row['yeast_seq_num'] in targets_yeast:
                     self.targets_pdb_num.add(row['pdb_res_num'])
         # Gsp1/RAN is always chain A
@@ -100,7 +100,7 @@ class PivotsParamsGen(object):
         # convert pdb numbering to yeast numbering
         self.pivots_yeast = set()
         for index, row in seq_index.iterrows():
-            if row['pdb'] == self.name:
+            if row['pdb'][0:4] == self.name[0:4]:
                 if row['pdb_res_num'] in self.pivots_pdb:
                     self.pivots_yeast.add(row['yeast_seq_num'])
         #print sorted(self.targets_pdb_num)
@@ -112,7 +112,7 @@ class PivotsParamsGen(object):
         # translate yeast pivots to pdb pivots
         self.pivots_pdb_retr = set()
         for index, row in seq_index.iterrows():
-            if row['pdb'] == self.name:
+            if row['pdb'][0:4] == self.name[0:4]:
                 if row['yeast_seq_num'] in pivot_set:
                     self.pivots_pdb_retr.add(row['pdb_res_num'])
         # get a list of res# in pdb file

@@ -3,7 +3,7 @@
 #$ -cwd
 #$ -r yes
 #$ -j y
-#$ -l h_rt=48:00:00
+#$ -l h_rt=72:00:00
 #$ -t 1-200
 #$ -l arch=linux-x64
 #$ -l mem_free=2G
@@ -14,10 +14,10 @@ import os
 import subprocess
 import shlex
 
-rosetta_backrub = "/Users/anatale/Rosetta/main/source/bin/backrub.default.macosclangrelease"
-rosetta_db_dir = "/Users/anatale/Rosetta/main/database"
+rosetta_backrub = "/netapp/home/gkreder/Rosetta_new/source/bin/backrub.default.linuxgccrelease"
+rosetta_db_dir = "/netapp/home/gkreder/Rosetta_new/database"
 
-input_pdbs_dir = "/Users/anatale/Documents/school/UCSF/Kortemme_lab/rosetta_staging/testing"
+input_pdbs_dir = "/netapp/home/anatale/backrub_ready_new"
 listfile = os.path.join(input_pdbs_dir, 'params_list.txt')
 
 ntrials=100
@@ -26,7 +26,12 @@ sge_task_id = 1
 if os.environ.has_key("SGE_TASK_ID"):
 	sge_task_id = os.environ["SGE_TASK_ID"]
 
-output_dir = "/Users/anatale/Documents/school/UCSF/Kortemme_lab/rosetta_staging/testing/output"
+output_dir = "/netapp/home/anatale/backrub_output_new"
+try:
+    os.makedirs(output_dir)
+except OSError:
+    if not os.path.isdir(output_dir):
+        raise
 outfile_name = os.path.join(output_dir, 'backrub_log_%s.log' % str(sge_task_id))
 
 def generate_backrub_cmd(pdb_file, params_file, pivot_residues):
